@@ -1,0 +1,47 @@
+---
+- hosts: vaultservers
+  #remote_user: root
+  vars:
+    addressFlag: "-address=http://{{inventory_hostname}}:8200"
+    vault_config: "{{ lookup('file', './vaultconfig.hcl') }}"
+  tasks:
+  - debug: msg="{{ addressFlag }}"
+  - debug: msg="{{ vault_config }}"
+  - name: pull vault image
+    docker_image:
+      name: vault:latest
+      state: present
+  - name: start vault
+    docker_container:
+      name: box_vault
+      image: vault
+      state: started
+      detach: True
+      ports:
+      - "8200:8200"
+      env:
+        VAULT_LOCAL_CONFIG: '{{ vault_config }}'
+      command: [
+          "server"        
+        ]
+      capabilities: [
+          IPC_LOCK
+        ]
+      
+  - name: init vault
+    local_action: shell ./vault operator init {{ addressFlag }} -key-shares=6 -key-threshold=4 -format=json | tee vault_init_output.json
+  - name: parse 'vault init' output
+    set_fact:
+      initData: "{{ lookup('file', './vault_init_output.json') | from_json }}"
+  - name: Unsealing (key 1)...
+    local_action: "shell ./vault operator unseal {{ addressFlag }} {{ initData['unseal_keys_b64'][0] }}"
+  - name: Unsealing (key 2)...
+    local_action: "shell ./vault operator unseal {{ addressFlag }} {{ initData['unseal_keys_b64'][1] }}"
+  - name: Unsealing (key 3)...
+    local_action: "shell ./vault operator unseal {{ addressFlag }} {{ initData['unseal_keys_b64'][2] }}"
+  - name: Unsealing (key 4)...
+    local_action: "shell ./vault operator unseal {{ addressFlag }} {{ initData['unseal_keys_b64'][3] }}"
+  - name: check vault status
+    local_action: "shell ./vault status {{ addressFlag }}"
+    register: statusOutput
+  - debug: msg="{{ statusOutput.stdout }}"
