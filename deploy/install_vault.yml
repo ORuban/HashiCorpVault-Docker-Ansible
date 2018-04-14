@@ -32,7 +32,8 @@
       capabilities: [
           IPC_LOCK
         ]
-      
+  - pause:
+      seconds: 5
   - name: init vault
     local_action: shell ./vault operator init {{ addressFlag }} -key-shares=6 -key-threshold=4 -format=json | tee vault_init_output.json
   - name: parse 'vault init' output
