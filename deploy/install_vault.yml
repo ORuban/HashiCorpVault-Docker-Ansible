@@ -7,10 +7,14 @@
   tasks:
   - debug: msg="{{ addressFlag }}"
   - debug: msg="{{ vault_config }}"
+  # Currently, docker_image is unable to pull latest image for tag, if previous exist
+  # https://github.com/ansible/ansible/issues/22596
+  # - name: pull vault image
+  #   docker_image:
+  #     name: vault:latest
+  #     state: present
   - name: pull vault image
-    docker_image:
-      name: vault:latest
-      state: present
+    command: "docker pull vault:latest"
   - name: start vault
     docker_container:
       name: box_vault
